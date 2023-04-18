@@ -12,7 +12,7 @@ Globals:
     MemorySize: 128
 
 Resources:
-  CreateProductFunction:
+  CreateItemFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/create_items/
@@ -27,6 +27,36 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ItemsTable
+  ListItemsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/return_items/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Events:
+        ListItem:
+          Type: Api
+          Properties:
+            Path: /items
+            Method: get
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ItemsTable
+  CreateMessagesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/create_messages/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Events:
+        CreateItem:
+          Type: Api
+          Properties:
+            Path: /messages
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MessagesTable
 
   ItemsTable:
     Type: AWS::DynamoDB::Table
@@ -42,7 +72,21 @@ Resources:
         ReadCapacityUnits: "1"
         WriteCapacityUnits: "1"
 
+  MessagesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "Messages"
+      AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "1"
+        WriteCapacityUnits: "1"
+
 Outputs:
   ItemsApi:
-      Description: "API Gateway Items Endpoint"
-      Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Description: "API Gateway Items Endpoint"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
