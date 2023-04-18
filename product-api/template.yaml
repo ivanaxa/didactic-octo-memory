@@ -57,6 +57,21 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ItemsTable
+  DeleteItemFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/delete_items/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Events:
+        CreateItem:
+          Type: Api
+          Properties:
+            Path: /items/{id}
+            Method: delete
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ItemsTable
   CreateMessagesFunction:
     Type: AWS::Serverless::Function
     Properties:

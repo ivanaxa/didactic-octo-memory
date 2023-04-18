@@ -10,7 +10,7 @@ logger.setLevel(logging.INFO)
 def lambda_handler(event, context):
 
     if ('body' not in event or
-            event['httpMethod'] != 'PUT'):
+            event['httpMethod'] != 'DELETE'):
         return {
             'statusCode': 400,
             'headers': {},
@@ -26,7 +26,7 @@ def lambda_handler(event, context):
     )
 
     table = item_table.Table(table_name)
-    activity = json.loads(event['body'])
+    #activity = json.loads(event['body'])
     item_id =  event['pathParameters']['id']
 
     params = {
@@ -34,22 +34,13 @@ def lambda_handler(event, context):
     }
 
     try:
-        response = table.update_item(
-            Key = params,
-            UpdateExpression="set itemName = :in, description = :d, price = :p, isActive = :a",
-            ExpressionAttributeValues = {
-                ":in": activity['itemName'],
-                ":d": activity['description'],
-                ":p": activity['price'],
-                ":a": activity['isActive']
-            },
-            ReturnValues = "UPDATED_NEW"
+        response = table.delete_item(
+            Key = params
         )
     except:
         logger.error(
-            "Couldn't update item %s in table %s.",
+            "Couldn't delete item %s in table %s.",
             item_id, table_name)
-        raise
 
     print(response)
 
