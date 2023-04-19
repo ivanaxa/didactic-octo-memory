@@ -3,6 +3,11 @@ import os
 import json
 import uuid
 from datetime import datetime
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 
 def lambda_handler(event, context):

@@ -8,7 +8,7 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 30
     MemorySize: 128
 
 Resources:
@@ -84,6 +84,21 @@ Resources:
           Properties:
             Path: /messages
             Method: post
+        GetItems:
+          Type: Api
+          Properties:
+            Path: /messages
+            Method: get
+        DeleteMessage:
+          Type: Api
+          Properties:
+            Path: /messages/{id}
+            Method: delete
+        UpdateItem:
+          Type: Api
+          Properties:
+            Path: /messages/{id}
+            Method: put
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref MessagesTable
@@ -99,8 +114,8 @@ Resources:
         - AttributeName: "id"
           KeyType: "HASH"
       ProvisionedThroughput:
-        ReadCapacityUnits: "1"
-        WriteCapacityUnits: "1"
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
 
   MessagesTable:
     Type: AWS::DynamoDB::Table
@@ -113,8 +128,8 @@ Resources:
         - AttributeName: "id"
           KeyType: "HASH"
       ProvisionedThroughput:
-        ReadCapacityUnits: "1"
-        WriteCapacityUnits: "1"
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
 
 Outputs:
   ItemsApi:
