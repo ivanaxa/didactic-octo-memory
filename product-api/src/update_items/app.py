@@ -49,7 +49,6 @@ def lambda_handler(event, context):
         logger.error(
             "Couldn't update item %s in table %s.",
             item_id, table_name)
-        raise
 
     print(response)
 

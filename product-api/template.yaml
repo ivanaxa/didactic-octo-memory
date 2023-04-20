@@ -72,19 +72,19 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ItemsTable
-  CreateMessagesFunction:
+  MessagesFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/create_messages/
       Handler: app.lambda_handler
       Runtime: python3.9
       Events:
-        CreateItem:
+        CreateMessage:
           Type: Api
           Properties:
             Path: /messages
             Method: post
-        GetItems:
+        GetMessages:
           Type: Api
           Properties:
             Path: /messages
@@ -92,12 +92,12 @@ Resources:
         DeleteMessage:
           Type: Api
           Properties:
-            Path: /messages/{id}
+            Path: /messages
             Method: delete
-        UpdateItem:
+        UpdateMessage:
           Type: Api
           Properties:
-            Path: /messages/{id}
+            Path: /messages
             Method: put
       Policies:
         - DynamoDBCrudPolicy:
@@ -131,7 +131,7 @@ Resources:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
 
-Outputs:
-  ItemsApi:
-    Description: "API Gateway Items Endpoint"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+#Outputs:
+#  ItemsApi:
+#    Description: "API Gateway Items Endpoint"
+#    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
