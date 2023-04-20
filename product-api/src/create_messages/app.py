@@ -13,8 +13,8 @@ logger.setLevel(logging.INFO)
 
 table_name = os.environ.get('TABLE', 'Messages')
 region = os.environ.get('REGION', 'us-west-2')
-messages_path = "/messages"
-messages_id_path = "/messages/"
+messages_path = '/messages'
+resource = '/messages/{owner}'
 
 
 def build_response(status_code, body=None):
@@ -41,6 +41,8 @@ def parse_input(event: json) -> dict:
     body = event["body"] if event.get("body") else None
     path = event["path"] if event.get('path') else None
     http_method = event['httpMethod'] if event.get('httpMethod') else None
+    path_params = event['pathParameters'] if event.get('pathParameters') else None  # {'owner': 'ivan'}
+    resource = event['resource'] if event.get('resource') else None
 
     if http_method == None or http_method not in operations or path == None:
         msg = {'msg': f'Unsupported http method:{http_method} and/or path'}
@@ -52,7 +54,9 @@ def parse_input(event: json) -> dict:
     return {
         "body": body,
         'path': path,
-        'http_method': http_method
+        'http_method': http_method,
+        'path_param': path_params,
+        'resource': resource
     }
 
 
@@ -83,25 +87,40 @@ def create_message(body: dict, table):
     return build_response(http.HTTPStatus.CREATED, body)
 
 
-def get_all_messages(input, table):
-    body = input['body'] if input.get('body') else None
-    owner = None
-    if body is not None:
-        owner = body['owner'] if body.get('owner') else None
-        # #if there is an owner, we scan just for those messages
-        # if owner:
-    else:
-        try:
-            # total table scan
-            response = table.scan()
-        except Exception as e:
-            build_response(http.HTTPStatus.BAD_REQUEST, e)
+def get_all_messages(table):
+    try:
+        # total table scan
+        response = table.scan()
+    except Exception as e:
+        build_response(http.HTTPStatus.BAD_REQUEST, e)
 
     return build_response(http.HTTPStatus.OK, response['Items'])
 
 
-def put_message(input):
-    pass
+def put_message(input, table):
+    body = input['body'] if input.get('body') else None
+    message_id = input['body']['id'] if input.get('body').get('id') else None
+    params = {
+        'id': message_id
+    }
+    try:
+        if message_id:
+            response = table.update_item(
+                Key=params,
+                UpdateExpression="set message = :m, outgoing_phone = :o, send_time = :s, display_name= :n",
+                ExpressionAttributeValues={
+                    ":m": body['message'],
+                    ":o": body['outgoing_phone'],
+                    ":s": body['send_time'],
+                    ":n": body['display_name']
+                },
+                ReturnValues="UPDATED_NEW"
+            )
+
+            logger.info(f'Updated message: {input}')
+            return build_response(http.HTTPStatus.OK, f'Message updated: {message_id}')
+    except Exception as e:
+        build_response(http.HTTPStatus.BAD_REQUEST, e)
 
 
 def delete_message(input, table):
@@ -122,8 +141,26 @@ def delete_message(input, table):
             message_id, table_name)
 
 
+def get_messages_by_user(event, table):
+    owner = event['pathParameters']['owner']
+
+    if owner:
+        # query secondary index for all messages
+        try:
+            response = table.query(
+                IndexName='owner-send_time-index',
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('owner').eq(owner)
+            )
+            logger.info(f'Updated message: {response["Items"]}')
+        except Exception as e:
+            logger.error(e)
+        return build_response(http.HTTPStatus.OK, response['Items'])
+    else:
+        return build_response(http.HTTPStatus.BAD_REQUEST, 'Missing owner')
+
+
 def lambda_handler(event, context):
-    # logger.info(event)
+    logger.info(event)
     input = parse_input(event)
 
     messages_table = boto3.resource(
@@ -136,12 +173,15 @@ def lambda_handler(event, context):
     # post
     if input['body'] and input['path'] == messages_path and input['http_method'] == 'POST':
         return create_message(input['body'], table)
+    # get by user
+    elif event['resource'] == resource and input['http_method'] == 'GET':
+        return get_messages_by_user(event, table)
     # get all
     elif input['path'] == messages_path and input['http_method'] == 'GET':
-        return get_all_messages(input, table)
+        return get_all_messages(table)
     # put
-    elif input['path'] == messages_id_path and input['http_method'] == 'PUT' and input['body']:
-        put_message(input, table)
+    elif input['path'] == messages_path and input['http_method'] == 'PUT' and input['body']:
+        return put_message(input, table)
     # delete
     elif input['path'] == messages_path and input['http_method'] == 'DELETE':
         return delete_message(input, table)
