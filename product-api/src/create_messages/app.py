@@ -72,8 +72,8 @@ def create_message(body: dict, table):
         'isDeleted': 'False',
         'dateAdded': str(datetime.timestamp(datetime.now()))
     }
-
     params['send_year_month_day'] = get_send_year_month_day(body['send_time'])
+    params['send_time']+=('Z')
 
     try:
         response = table.put_item(
@@ -115,7 +115,7 @@ def put_message(input, table):
                 ExpressionAttributeValues={
                     ":m": body['message'],
                     ":o": body['outgoing_phone'],
-                    ":s": body['send_time'],
+                    ":s": body['send_time']+'Z',
                     ":symd": symd,
                     ":n": body['display_name']
                 },
