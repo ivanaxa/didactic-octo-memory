@@ -107,6 +107,17 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref MessagesTable
+
+  MessageScannerFunctions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/scan_messages_lambda/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MessagesTable
+
   ItemsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -131,6 +142,8 @@ Resources:
           AttributeType: "S"
         - AttributeName: "send_time"
           AttributeType: "S"
+        - AttributeName: "send_year_month_day"
+          AttributeType: "S"
       KeySchema:
         - AttributeName: "id"
           KeyType: "HASH"
@@ -144,6 +157,17 @@ Resources:
             KeyType: "HASH"
           - AttributeName: "send_time"
             KeyType: "RANGE"
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+        - IndexName: "send_year_month_day-send_time-index"
+          KeySchema:
+            - AttributeName: "send_year_month_day"
+              KeyType: "HASH"
+            - AttributeName: "send_time"
+              KeyType: "RANGE"
           Projection:
             ProjectionType: ALL
           ProvisionedThroughput:
