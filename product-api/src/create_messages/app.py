@@ -73,6 +73,8 @@ def create_message(body: dict, table):
         'dateAdded': str(datetime.timestamp(datetime.now()))
     }
 
+    params['send_year_month_day'] = get_send_year_month_day(body['send_time'])
+
     try:
         response = table.put_item(
             TableName=table_name,
@@ -105,13 +107,16 @@ def put_message(input, table):
     }
     try:
         if message_id:
+            symd = get_send_year_month_day(body['send_time'])
+
             response = table.update_item(
                 Key=params,
-                UpdateExpression="set message = :m, outgoing_phone = :o, send_time = :s, display_name= :n",
+                UpdateExpression="set message = :m, outgoing_phone = :o, send_time = :s, send_year_month_day = :symd, display_name= :n",
                 ExpressionAttributeValues={
                     ":m": body['message'],
                     ":o": body['outgoing_phone'],
                     ":s": body['send_time'],
+                    ":symd": symd,
                     ":n": body['display_name']
                 },
                 ReturnValues="UPDATED_NEW"
@@ -120,7 +125,7 @@ def put_message(input, table):
             logger.info(f'Updated message: {input}')
             return build_response(http.HTTPStatus.OK, f'Message updated: {message_id}')
     except Exception as e:
-        build_response(http.HTTPStatus.BAD_REQUEST, e)
+        build_response(http.HTTPStatus.BAD_REQUEST, "Bad Request")
 
 
 def delete_message(input, table):
@@ -159,6 +164,16 @@ def get_messages_by_user(event, table):
         return build_response(http.HTTPStatus.BAD_REQUEST, 'Missing owner')
 
 
+def get_send_year_month_day(date: str) -> str:
+    try:
+        datetime_object = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
+        send_year_month_day = datetime_object.strftime("%Y-%m-%d")
+        return send_year_month_day
+    except:
+        return build_response(http.HTTPStatus.BAD_REQUEST,
+                              "incorrectly formatted datetime. Need YYYY-MM-DDTHH:MM:SS")
+
+
 def lambda_handler(event, context):
     logger.info(event)
     input = parse_input(event)
@@ -174,7 +189,7 @@ def lambda_handler(event, context):
     if input['body'] and input['path'] == messages_path and input['http_method'] == 'POST':
         return create_message(input['body'], table)
     # get by user
-    elif event['resource'] == resource and input['http_method'] == 'GET':
+    elif input['resource'] == resource and input['http_method'] == 'GET':
         return get_messages_by_user(event, table)
     # get all
     elif input['path'] == messages_path and input['http_method'] == 'GET':
