@@ -1,9 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  product-api
-
-  Sample SAM Template for product-api
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -12,66 +9,40 @@ Globals:
     MemorySize: 128
 
 Resources:
-  CreateItemFunction:
-    Type: AWS::Serverless::Function
+  MessagesUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
     Properties:
-      CodeUri: src/create_items/
-      Handler: app.lambda_handler
-      Runtime: python3.9
-      Events:
-        CreateItem:
-          Type: Api
-          Properties:
-            Path: /items
-            Method: post
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ItemsTable
-  ListItemsFunction:
-    Type: AWS::Serverless::Function
+      ApiStages:
+        - ApiId: !Ref ServerlessRestApi
+          Stage: Prod
+      Description: "Message Plan for Messages Service"
+      UsagePlanName: MessagesUsagePlan
+      Throttle:
+        BurstLimit: 50
+        RateLimit: 100.0
+      Quota:
+        Limit: 10000
+        Period: MONTH
+
+  MessagesApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn: [MessagesUsagePlan]
     Properties:
-      CodeUri: src/return_items/
-      Handler: app.lambda_handler
-      Runtime: python3.9
-      Events:
-        ListItem:
-          Type: Api
-          Properties:
-            Path: /items
-            Method: get
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ItemsTable
-  UpdateItemFunction:
-    Type: AWS::Serverless::Function
+      Description: "Messages Api key for MessagesUsagePlan"
+      Enabled: True
+      GenerateDistinctId: True
+      Name: MessagesApiKey
+
+  MessagesUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    DependsOn:
+      - ServerlessRestApiProdStage
     Properties:
-      CodeUri: src/update_items/
-      Handler: app.lambda_handler
-      Runtime: python3.9
-      Events:
-        CreateItem:
-          Type: Api
-          Properties:
-            Path: /items/{id}
-            Method: put
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ItemsTable
-  DeleteItemFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/delete_items/
-      Handler: app.lambda_handler
-      Runtime: python3.9
-      Events:
-        CreateItem:
-          Type: Api
-          Properties:
-            Path: /items/{id}
-            Method: delete
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ItemsTable
+      UsagePlanId: !Ref MessagesUsagePlan
+      KeyId: !Ref MessagesApiKey
+      KeyType: API_KEY
+
+
   MessagesFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -84,31 +55,45 @@ Resources:
           Properties:
             Path: /messages
             Method: post
+            Auth:
+              ApiKeyRequired: true
         GetMessages:
           Type: Api
           Properties:
             Path: /messages
             Method: get
+            Auth:
+              ApiKeyRequired: true
+
         GetMessagesByOwner:
           Type: Api
           Properties:
             Path: /messages/{owner}
             Method: get
+            Auth:
+              ApiKeyRequired: true
+
         DeleteMessage:
           Type: Api
           Properties:
             Path: /messages
             Method: delete
+            Auth:
+              ApiKeyRequired: true
+
         UpdateMessage:
           Type: Api
           Properties:
             Path: /messages
             Method: put
+            Auth:
+              ApiKeyRequired: true
+
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref MessagesTable
 
-  MessageScannerFunctions:
+  MessageScannerFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/scan_messages_lambda/
@@ -118,19 +103,31 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref MessagesTable
 
-  ItemsTable:
+  MessageUserService:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/scan_messages_lambda/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+
+  UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: "Items"
+      TableName: "MessagesUsers"
       AttributeDefinitions:
-        - AttributeName: "id"
+        - AttributeName: "username"
           AttributeType: "S"
       KeySchema:
-        - AttributeName: "id"
+        - AttributeName: "username"
           KeyType: "HASH"
       ProvisionedThroughput:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
+
+
   MessagesTable:
     Type: AWS::DynamoDB::Table
     Properties:
